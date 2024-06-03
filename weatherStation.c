@@ -403,45 +403,73 @@ TNodo* temperaturaMax(char name[50]){
     return aux2;
 }
 
-TNodo* velocidadViento(char name[50]){
+TNodo* velocidadViento(char name[50]) {
     TData res;
-    int i, j;
+    int i;
     TNodo *aux, *aux2, *aux3;
 
     //en res, esta guardado todo el archivo pasado a un arreglo
     res = arregloDeArchivo(name);
-    i = res.cant - 1;
+    if (res.reg == NULL) {
+        printf("Error al leer el archivo.");
+        return NULL;
+    }
+
+    //aplico quickSort sobre el arreglo para ordenarlo
+    quickSort(res.reg, 0, res.cant - 1);
+
     aux2 = NULL;
 
-    //aplico bubbleSort sobre el arreglo para ordenarlo
-    while(i > 0){
-        j = 0;
-        while(j < i){
-            if(res.reg[j].FF < res.reg[j + 1].FF){
-                intercambiar(&res.reg[j], &res.reg[j + 1]);
-            }
-            j++;
-        }
-        i--;
-    }
-
-    i = 0;
-
     //paso los datos del arreglo a una LSE para mostrar los dias con la maxima velocidad de viento
-    while(i < res.cant){
+    for (i = 0; i < res.cant; i++) {
         aux = crearNodo();
         aux->info = res.reg[i];
-            if(aux2 == NULL){
-                aux2 = aux;
-                aux3 = aux2;
-            }else{
-                aux3->next = aux;
-                aux3 = aux3->next;
-            }
-        i++;
+        if (aux2 == NULL) {
+            aux2 = aux;
+            aux3 = aux2;
+        } else {
+            aux3->next = aux;
+            aux3 = aux3->next;
+        }
     }
+
+    //libero la memoria del arreglo
+    free(res.reg);
+
     //retorno la cabeza de la lista de las velocidades del viento
     return aux2;
+}
+
+void quickSort(regDiario arr[], int low, int high) {
+    if (low < high) {
+        /* pi is partitioning index, arr[p] is now at right place */
+        int pi = partition(arr, low, high);
+
+        // Separately sort elements before partition and after partition
+        quickSort(arr, low, pi - 1);
+        quickSort(arr, pi + 1, high);
+    }
+}
+
+int partition (regDiario arr[], int low, int high) {
+    int pivot = arr[high].FF; // pivot
+    int i = (low - 1); // Index of smaller element
+
+    for (int j = low; j <= high - 1; j++) {
+        // If current element is smaller than or equal to pivot
+        if (arr[j].FF <= pivot) {
+            i++; // increment index of smaller element
+            swap(&arr[i], &arr[j]);
+        }
+    }
+    swap(&arr[i + 1], &arr[high]);
+    return (i + 1);
+}
+
+void swap(regDiario* a, regDiario* b) {
+    regDiario t = *a;
+    *a = *b;
+    *b = t;
 }
 
 TNodo* precipitacionMax(char name[50]){
