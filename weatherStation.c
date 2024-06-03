@@ -179,7 +179,7 @@ int alta(char name[50]){
     regDiario datos;
     FILE *f = fopen(name, "a");
     
-    if (f == NULL){
+    if (f == NULL) {
         perror("No se ha podido abrir el archivo");
         return -1;
     }
@@ -194,17 +194,17 @@ int alta(char name[50]){
     printf("Ingrese la temperatura minima del dia: ");
     scanf("%d", &datos.tmin);
     
-    do{
+    do {
         printf("Ingrese el indice de humedad promedio del dia (entre %d y %d): ", MIN_HUMIDITY, MAX_HUMIDITY);
         scanf("%d", &datos.HUM);
     } while (datos.HUM < MIN_HUMIDITY || datos.HUM > MAX_HUMIDITY);
     
-    do{
+    do {
         printf("Ingrese la presion atmosferica promedio (en hectopascales) del dia (entre %d y %d): ", MIN_PRESSURE, MAX_PRESSURE);
         scanf("%d", &datos.PNM);
     } while (datos.PNM < MIN_PRESSURE || datos.PNM > MAX_PRESSURE);
     
-    do{
+    do {
         printf("Ingrese la direccion (en grados, de %d a %d) del viento mas fuerte del dia: ", MIN_WIND_DIRECTION, MAX_WIND_DIRECTION);
         scanf("%d", &datos.DV);
     } while (datos.DV < MIN_WIND_DIRECTION || datos.DV > MAX_WIND_DIRECTION);
@@ -237,8 +237,8 @@ int baja(int ddmmyyyy,char name[50]){
     
     if (f != NULL){
         //recorro el archivo hasta encontrar un registro con la misma fecha que el parametro
-        while(fread(&datos, sizeof(regDiario), 1, f) != 0){
-            if(datos.ddmmyyyy == ddmmyyyy && datos.borrado == false){
+        while (fread(&datos, sizeof(regDiario), 1, f) != 0) {
+            if (datos.ddmmyyyy == ddmmyyyy && datos.borrado == false) {
                 //una vez encontrado, aplico el borrado logico, escribiendo el cambio en el archivo
                 datos.borrado = true;
                 int pos = (ftell(f) - (sizeof(regDiario)));
@@ -264,7 +264,7 @@ int baja(int ddmmyyyy,char name[50]){
         }
         
         return registrosBorrados;
-    }else{
+    } else {
         perror("No se ha podido abrir el archivo");
         return -1;
     } 
@@ -277,8 +277,8 @@ void modificar(int ddmmyyyy,char name[50]){
     
     if(f != NULL){
         //recorro el archivo hasta encontrar un resgitro con la misma fecha que el parametro
-        while(fread(&aux, sizeof(regDiario), 1, f) != 0){
-            if(aux.ddmmyyyy == ddmmyyyy){
+        while (fread(&aux, sizeof(regDiario), 1, f) != 0) {
+            if (aux.ddmmyyyy == ddmmyyyy) {
                 //realizo la carga de los datos modificados en una variable auxiliar
                 printf("Ingrese la fecha de hoy: \n");
                 scanf("%ld", &nuevoReg.ddmmyyyy);
@@ -289,17 +289,17 @@ void modificar(int ddmmyyyy,char name[50]){
                 printf("Ingrese la temperatura minima del dia: \n");
                 scanf("%d", &nuevoReg.tmin);
             
-                do{
+                do {
                     printf("Ingrese el indice de humedad promedio del dia (entre %d y %d): \n", MIN_HUMIDITY, MAX_HUMIDITY);
                     scanf("%d", &nuevoReg.HUM);
                 } while (nuevoReg.HUM < MIN_HUMIDITY || nuevoReg.HUM > MAX_HUMIDITY);
             
-                do{
+                do {
                     printf("Ingrese la presion atmosferica promedio (PNM) del dia (entre %d y %d): \n", MIN_PRESSURE, MAX_PRESSURE);
                     scanf("%d", &nuevoReg.PNM);
                 } while (nuevoReg.PNM < MIN_PRESSURE || nuevoReg.PNM > MAX_PRESSURE);
             
-                do{
+                do {
                     printf("Ingrese la direccion (en grados, de %d a %d) del viento mas fuerte del dia: \n", MIN_WIND_DIRECTION, MAX_WIND_DIRECTION);
                     scanf("%d", &nuevoReg.DV);
                 } while (nuevoReg.DV < MIN_WIND_DIRECTION || nuevoReg.DV > MAX_WIND_DIRECTION);
@@ -327,19 +327,19 @@ void modificar(int ddmmyyyy,char name[50]){
                 return;
             }
         }
-    }else{
+    } else {
         perror("No se ha podido abrir el archivo");
     }
 }
 
 void mostrar(char name[50]){
     regDiario aux;
-    f = fopen(name, "rb");
+    FILE *f = fopen(name, "rb");
     
-    if(f != NULL){
+    if (f != NULL){
         //recorro el archivo mostrando los registros si su campo "borrado" es false
-        while(fread(&aux, sizeof(regDiario), 1, f) != 0){
-            if(aux.borrado == false){
+        while (fread(&aux, sizeof(regDiario), 1, f) != 0) {
+            if (aux.borrado == false) {
                 printf("\n-----------------------------------\n");
                 printf("Fecha del registro: %ld\n", aux.ddmmyyyy);
                 printf("Temperatura maxima de la fecha: %d grados celsius\n", aux.tmax);
@@ -348,19 +348,13 @@ void mostrar(char name[50]){
                 printf("Presion atmosferica de la fecha: %d hectopascales\n", aux.PNM);
                 printf("Direccion del viento con mayor intensidad (de 0 a 360): %d grados\n", aux.DV);
                 printf("Maxima velocidad de viento de la fecha: %d km/h\n", aux.FF);
-                printf("Precipitacion pluvial de la fecha: %d mm", aux.PP);
-                if(aux.borrado){
-                    printf("\n VERDADERO \n");
-                }
-                else{
-                    printf("\n FALSO \n");
-                }
+                printf("Precipitacion pluvial de la fecha: %d mm\n", aux.PP);
                 printf("\n-----------------------------------\n");
             }
         }
         fclose(f);	
-    }else{
-        printf("No se ha podido abrir el archivo!\n");
+    } else {
+        perror("No se ha podido abrir el archivo");
     }
 }
 
