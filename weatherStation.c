@@ -72,7 +72,7 @@ int opcion, i;
 
 //perfiles de funciones principales
 int alta(char name[50]);
-void baja(int ddmmyyyy,char name[50]);
+int baja(int ddmmyyyy,char name[50]);
 void modificar(int ddmmyyyy,char name[50]);
 void mostrar(char name[50]);
 int busqueda(TData a, long fecha, int cant);
@@ -230,28 +230,43 @@ int alta(char name[50]){
     return 0;
 }
 
-void baja(int ddmmyyyy,char name[50]){
+int baja(int ddmmyyyy,char name[50]){
     regDiario datos;
-    f = fopen(name, "r+b");
+    FILE *f = fopen(name, "r+b");
+    int registrosBorrados = 0;
     
     if (f != NULL){
-        //recorro el archuivo hasta encontrar un registro con la misma fecha que el parametro
+        //recorro el archivo hasta encontrar un registro con la misma fecha que el parametro
         while(fread(&datos, sizeof(regDiario), 1, f) != 0){
-            if(datos.ddmmyyyy == ddmmyyyy){
-                if (datos.borrado == false){
-                    //una vez encontrado, aplico el borrado logico, escribiendo el cambio en el archivo
-                    datos.borrado = true;
-                    int pos = (ftell(f) - (sizeof(regDiario)));
-                    fseek(f,pos,SEEK_SET);
-                    
-                    fwrite(&datos, sizeof(datos), 1, f);
-                    printf("Registro borrado con exito!\n");
+            if(datos.ddmmyyyy == ddmmyyyy && datos.borrado == false){
+                //una vez encontrado, aplico el borrado logico, escribiendo el cambio en el archivo
+                datos.borrado = true;
+                int pos = (ftell(f) - (sizeof(regDiario)));
+                fseek(f,pos,SEEK_SET);
+                
+                if (fwrite(&datos, sizeof(datos), 1, f) != 1) {
+                    perror("Error al escribir en el archivo");
                     fclose(f);
+                    return -1;
                 }
+                
+                registrosBorrados++;
+                break; // Deja de buscar una vez que se ha borrado el registro
             }
         }
+        
+        fclose(f);
+        
+        if (registrosBorrados > 0) {
+            printf("Registro borrado con exito!\n");
+        } else {
+            printf("No se encontró ningún registro para borrar.\n");
+        }
+        
+        return registrosBorrados;
     }else{
-        printf("No se ha podido abrir el archivo!\n");
+        perror("No se ha podido abrir el archivo");
+        return -1;
     } 
 }
 
