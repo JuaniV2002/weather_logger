@@ -273,7 +273,7 @@ int baja(int ddmmyyyy,char name[50]){
 void modificar(int ddmmyyyy,char name[50]){
     regDiario nuevoReg;
     regDiario aux;
-    f = fopen(name, "r+b");
+    FILE *f = fopen(name, "r+b");
     
     if(f != NULL){
         //recorro el archivo hasta encontrar un resgitro con la misma fecha que el parametro
@@ -290,19 +290,19 @@ void modificar(int ddmmyyyy,char name[50]){
                 scanf("%d", &nuevoReg.tmin);
             
                 do{
-                    printf("Ingrese el indice de humedad promedio del dia (entre 0 y 100): \n");
+                    printf("Ingrese el indice de humedad promedio del dia (entre %d y %d): \n", MIN_HUMIDITY, MAX_HUMIDITY);
                     scanf("%d", &nuevoReg.HUM);
-                } while (nuevoReg.HUM <= 0 || nuevoReg.HUM >= 100);
+                } while (nuevoReg.HUM < MIN_HUMIDITY || nuevoReg.HUM > MAX_HUMIDITY);
             
                 do{
-                    printf("Ingrese la presion atmosferica promedio (PNM) del dia (entre 900 y 3500): \n");
+                    printf("Ingrese la presion atmosferica promedio (PNM) del dia (entre %d y %d): \n", MIN_PRESSURE, MAX_PRESSURE);
                     scanf("%d", &nuevoReg.PNM);
-                } while (nuevoReg.PNM <= 900 || nuevoReg.PNM >= 3500);
+                } while (nuevoReg.PNM < MIN_PRESSURE || nuevoReg.PNM > MAX_PRESSURE);
             
                 do{
-                    printf("Ingrese la direccion (en grados, de 0 a 360) del viento mas fuerte del dia: \n");
+                    printf("Ingrese la direccion (en grados, de %d a %d) del viento mas fuerte del dia: \n", MIN_WIND_DIRECTION, MAX_WIND_DIRECTION);
                     scanf("%d", &nuevoReg.DV);
-                } while (nuevoReg.DV <= 0 || nuevoReg.DV >= 360);
+                } while (nuevoReg.DV < MIN_WIND_DIRECTION || nuevoReg.DV > MAX_WIND_DIRECTION);
             
                 printf("Ingrese la maxima velocidad de viento del dia: \n");
                 scanf("%d", &nuevoReg.FF);
@@ -314,16 +314,21 @@ void modificar(int ddmmyyyy,char name[50]){
 
                 //sobreescribo el registro con los datos antiguos con los nuevos datos
                 int pos = (ftell(f) - (sizeof(regDiario)));
-                printf("%d\n", pos);
                 fseek(f, pos, SEEK_SET);
                 
-                fwrite(&nuevoReg, sizeof(nuevoReg), 1, f);
+                if (fwrite(&nuevoReg, sizeof(nuevoReg), 1, f) != 1) {
+                    perror("Error al escribir en el archivo");
+                    fclose(f);
+                    return;
+                }
+                
                 printf("Registro modificado con exito!\n");
                 fclose(f);
+                return;
             }
         }
     }else{
-        printf("No se ha podido abrir el archivo!\n");
+        perror("No se ha podido abrir el archivo");
     }
 }
 
