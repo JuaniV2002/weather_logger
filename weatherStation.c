@@ -11,6 +11,7 @@
 #define MAX_PRESSURE 3500
 #define MIN_WIND_DIRECTION 0
 #define MAX_WIND_DIRECTION 360
+#define MIN_POSSIBLE_TEMP -274
 
 // registro encargado de almacenar todos los datos meteorologicos
 typedef struct regDiario{
@@ -362,40 +363,41 @@ TNodo* temperaturaMax(char name[50]){
     FILE* f;
     TNodo *aux, *aux2, *aux3;
     regDiario reg;
-    int maxTemp;
+    int maxTemp = MIN_POSSIBLE_TEMP;
 
     f = fopen(name, "rb");
     
-    if(f == NULL){
+    if (f == NULL) {
         printf("El archivo esta vacio.");
-    }else{
-        //temperatura mas baja posible
-        maxTemp = -274;
+        return NULL;
+    }
+
+    aux2 = NULL;
         
-        //recorro el archivo y almaceno la temperatura maxima
-        while(fread(&reg, sizeof(regDiario), 1, f) != 0){
-            if (reg.tmax > maxTemp && reg.borrado == false){
+    //recorro el archivo y almaceno la temperatura maxima y creo la lista enlazada
+    while (fread(&reg, sizeof(regDiario), 1, f) != 0) {
+        if (reg.borrado == false) {
+            if (reg.tmax > maxTemp) {
                 maxTemp = reg.tmax;
-            }
-        }
-        rewind(f);
-        aux2 = NULL;
-        
-        //vuelvo a recorrer el archivo mientras se crea una LSE con las temperaturas maximas
-        while(fread(&reg, sizeof(regDiario), 1, f) != 0){
-            if(reg.tmax == maxTemp && reg.borrado == false){
+                // liberar la lista anterior
+                while (aux2 != NULL) {
+                    aux = aux2;
+                    aux2 = aux2->next;
+                    free(aux);
+                }
                 aux = crearNodo();
                 aux->info = reg;
-                if(aux2 == NULL){
-                    aux2 = aux;
-                    aux3 = aux2;
-                }else{
-                    aux3->next = aux;
-                    aux3 = aux;
-                }
+                aux2 = aux;
+                aux3 = aux2;
+            } else if (reg.tmax == maxTemp){
+                aux = crearNodo();
+                aux->info = reg;
+                aux3->next = aux;
+                aux3 = aux;
             }
         }
     }
+
     fclose(f);
     //retorno la cabeza de la lista con las temperaturas maximas
     return aux2;
