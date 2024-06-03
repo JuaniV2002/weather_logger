@@ -3,11 +3,18 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+
 #define max 1000
+#define MIN_HUMIDITY 0
+#define MAX_HUMIDITY 100
+#define MIN_PRESSURE 900
+#define MAX_PRESSURE 3500
+#define MIN_WIND_DIRECTION 0
+#define MAX_WIND_DIRECTION 360
 
 // registro encargado de almacenar todos los datos meteorologicos
 typedef struct regDiario{
-    long int ddmmyyyy;
+    long ddmmyyyy;
     int tmax;
     int tmin;
     int HUM;
@@ -16,7 +23,7 @@ typedef struct regDiario{
     int FF;
     int PP;
     bool borrado; 
-}regDiario;
+} regDiario;
 
 typedef struct fecha{
     int dd;
@@ -54,7 +61,6 @@ typedef struct nodo {
 } TNodo;
 
 
-
 //variables usada en el programa
 regDiario datos;
 TData regAr;
@@ -65,7 +71,7 @@ long fecha;
 int opcion, i;
 
 //perfiles de funciones principales
-void alta(char name[50]);
+int alta(char name[50]);
 void baja(int ddmmyyyy,char name[50]);
 void modificar(int ddmmyyyy,char name[50]);
 void mostrar(char name[50]);
@@ -169,52 +175,59 @@ int main() {
 }
 
 //definicion de las funciones principales
-void alta(char name[50]){
+int alta(char name[50]){
     regDiario datos;
-    f = fopen(name, "a");
+    FILE *f = fopen(name, "a");
     
-    if (f != NULL){
-        //se realiza la carga de datos
-        printf("\nIngrese la fecha de hoy: ");
-        scanf("%ld", &datos.ddmmyyyy);
-        
-        printf("Ingrese la temperatura maxima del dia: ");
-        scanf("%d", &datos.tmax);
-        
-        printf("Ingrese la temperatura minima del dia: ");
-        scanf("%d", &datos.tmin);
-        
-        do{
-            printf("Ingrese el indice de humedad promedio del dia (entre 0 y 100): ");
-            scanf("%d", &datos.HUM);
-        } while (datos.HUM < 0 || datos.HUM > 100);
-        
-        do{
-            printf("Ingrese la presion atmosferica promedio (en hectopascales) del dia (entre 900 y 3500): ");
-            scanf("%d", &datos.PNM);
-        } while (datos.PNM < 900 || datos.PNM > 3500);
-        
-        do{
-            printf("Ingrese la direccion (en grados, de 0 a 360) del viento mas fuerte del dia: ");
-            scanf("%d", &datos.DV);
-        } while (datos.DV < 0 || datos.DV > 360);
-        
-        printf("Ingrese la maxima velocidad (km/h) de viento del dia: ");
-        scanf("%d", &datos.FF);
-        
-        printf("Ingrese la precipitacion pluvial del dia (en mm): ");
-        scanf("%d", &datos.PP);
-        
-        datos.borrado = false;
-
-        //los datos almacenados son escritos al archivo
-        fwrite(&datos, sizeof(datos), 1, f);
-        fclose(f);
-        
-        printf("\nRegistro añadido con exito!\n");
-    }else{
-        printf("No se ha podido abrir el archivo!\n");
+    if (f == NULL){
+        perror("No se ha podido abrir el archivo");
+        return -1;
     }
+
+    //se realiza la carga de datos
+    printf("\nIngrese la fecha de hoy: ");
+    scanf("%ld", &datos.ddmmyyyy);
+    
+    printf("Ingrese la temperatura maxima del dia: ");
+    scanf("%d", &datos.tmax);
+    
+    printf("Ingrese la temperatura minima del dia: ");
+    scanf("%d", &datos.tmin);
+    
+    do{
+        printf("Ingrese el indice de humedad promedio del dia (entre %d y %d): ", MIN_HUMIDITY, MAX_HUMIDITY);
+        scanf("%d", &datos.HUM);
+    } while (datos.HUM < MIN_HUMIDITY || datos.HUM > MAX_HUMIDITY);
+    
+    do{
+        printf("Ingrese la presion atmosferica promedio (en hectopascales) del dia (entre %d y %d): ", MIN_PRESSURE, MAX_PRESSURE);
+        scanf("%d", &datos.PNM);
+    } while (datos.PNM < MIN_PRESSURE || datos.PNM > MAX_PRESSURE);
+    
+    do{
+        printf("Ingrese la direccion (en grados, de %d a %d) del viento mas fuerte del dia: ", MIN_WIND_DIRECTION, MAX_WIND_DIRECTION);
+        scanf("%d", &datos.DV);
+    } while (datos.DV < MIN_WIND_DIRECTION || datos.DV > MAX_WIND_DIRECTION);
+    
+    printf("Ingrese la maxima velocidad (km/h) de viento del dia: ");
+    scanf("%d", &datos.FF);
+    
+    printf("Ingrese la precipitacion pluvial del dia (en mm): ");
+    scanf("%d", &datos.PP);
+    
+    datos.borrado = false;
+
+    //los datos almacenados son escritos al archivo
+    if (fwrite(&datos, sizeof(datos), 1, f) != 1) {
+        perror("Error al escribir en el archivo");
+        fclose(f);
+        return -1;
+    }
+
+    fclose(f);
+    
+    printf("\nRegistro añadido con exito!\n");
+    return 0;
 }
 
 void baja(int ddmmyyyy,char name[50]){
