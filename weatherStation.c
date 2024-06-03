@@ -85,7 +85,7 @@ TNodo* precipitacionMax(char name[50]);
 //perfiles de las funciones auxiliares
 TNodo* crearNodo();
 void liberar(TNodo **a);
-void intercambiar(regDiario *x, regDiario *y);
+void swap(regDiario *x, regDiario *y);
 TData arregloDeArchivo(char name[50]);
 TDatac arregloDeArchivoC(char name[50]);
 
@@ -440,6 +440,45 @@ TNodo* velocidadViento(char name[50]) {
     return aux2;
 }
 
+TNodo* precipitacionMax(char name[50]){
+    TData res;
+    int i;
+    TNodo *aux, *aux2, *aux3;
+
+    //en res, esta guardado todo el archivo pasado a un arreglo
+    res = arregloDeArchivo(name);
+    if (res.reg == NULL) {
+        printf("Error al leer el archivo.");
+        return NULL;
+    }
+
+    //aplico quickSort sobre el arreglo para ordenarlo
+    quickSort(res.reg, 0, res.cant - 1);
+
+    aux2 = NULL;
+
+    //paso los datos del arreglo a una LSE para mostrar los dias con la maxima precipitacion
+    for(i = res.cant - 1; i >= 0; i--){
+        aux = crearNodo();
+        aux->info = res.reg[i];
+        if(aux2 == NULL){
+            aux2 = aux;
+            aux3 = aux2;
+        }else{
+            aux3->next = aux;
+            aux3 = aux3->next;
+        }
+    }
+
+    //libero la memoria del arreglo
+    free(res.reg);
+
+    //retorno la cabeza de la lista con las precipitaciones maximas
+    return aux2;
+}
+
+//definicion de las funciones auxiliares
+
 void quickSort(regDiario arr[], int low, int high) {
     if (low < high) {
         /* pi is partitioning index, arr[p] is now at right place */
@@ -466,55 +505,6 @@ int partition (regDiario arr[], int low, int high) {
     return (i + 1);
 }
 
-void swap(regDiario* a, regDiario* b) {
-    regDiario t = *a;
-    *a = *b;
-    *b = t;
-}
-
-TNodo* precipitacionMax(char name[50]){
-    TData res;
-    regDiario auxT;
-    TNodo *aux,*aux2,*aux3;
-    int i, j;
-
-    //en res, esta guardado todo el archivo pasado a un arreglo
-    res = arregloDeArchivo(name);
-    i = 1;
-    
-    //utilizando insertionSort, ordeno el arreglo
-    while (i < res.cant){
-        auxT = res.reg[i];
-        j = i - 1;
-        while ((j >= 0) && (res.reg[j].PP > auxT.PP)){
-            res.reg[j + 1] = res.reg[j];
-            j--;
-        }
-        res.reg[j + 1] = auxT;
-        i++;
-    }
-
-    i = res.cant - 1;
-
-    //paso los datos del arreglo a una LSE para mostrar los dias con la maxima precipitacion
-    aux2 = NULL;
-    while (i >= 0){
-        aux = crearNodo();
-        aux->info = res.reg[i];
-        if(aux2 == NULL){
-            aux2 = aux;
-            aux3 = aux2;
-        }else{
-            aux3->next = aux;
-            aux3 = aux3->next;
-        }
-        i--;
-    }
-    //retorno la cabeza de la lista con las precipitaciones maximas
-    return aux2;
-}
-
-//definicion de las funciones auxiliares
 TNodo* crearNodo(){
     //funcion que se encarga de crear un nodo de tipo TNodo, que almacenara un registro regDiario
     TNodo* a;
@@ -538,7 +528,7 @@ void liberar(TNodo **a){
     }
 }
 
-void intercambiar(regDiario *x, regDiario *y){
+void swap(regDiario *x, regDiario *y){
     //intercambio dos registros entre si usando un auxiliar
     regDiario aux;
     aux = *x;
