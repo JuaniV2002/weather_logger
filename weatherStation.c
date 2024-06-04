@@ -321,27 +321,31 @@ void modificar(int ddmmyyyy, char name[50]) {
     }
 }
 
-void mostrar(char name[50]){
-    regDiario aux;
+void mostrar(char name[50]) {
     FILE *f = fopen(name, "rb");
+    regDiario datos;
+    int i = 0;
     
-    if (f != NULL){
-        //recorro el archivo mostrando los registros si su campo "borrado" es false
-        while (fread(&aux, sizeof(regDiario), 1, f) != 0) {
-            if (aux.borrado == false) {
-                printf("\n-----------------------------------\n");
-                printf("Fecha del registro: %ld\n", aux.ddmmyyyy);
-                printf("Temperatura maxima de la fecha: %d grados celsius\n", aux.tmax);
-                printf("Temperatura minima de la fecha: %d grados celsius\n", aux.tmin);
-                printf("Humedad promedio de la fecha: %d%%\n", aux.HUM);
-                printf("Presion atmosferica de la fecha: %d hectopascales\n", aux.PNM);
-                printf("Direccion del viento con mayor intensidad (de 0 a 360): %d grados\n", aux.DV);
-                printf("Maxima velocidad de viento de la fecha: %d km/h\n", aux.FF);
-                printf("Precipitacion pluvial de la fecha: %d mm\n", aux.PP);
-                printf("\n-----------------------------------\n");
+    if (f != NULL) {
+        printf("\nContenido del archivo %s:\n", name);
+        while (fread(&datos, sizeof(regDiario), 1, f) != 0) {
+            if (!datos.borrado) {
+                printf("\nRegistro #%d:\n", i+1);
+                printf("Fecha: %ld\n", datos.ddmmyyyy);
+                printf("Temperatura máxima: %d\n", datos.tmax);
+                printf("Temperatura mínima: %d\n", datos.tmin);
+                printf("Humedad promedio: %d\n", datos.HUM);
+                printf("Presión atmosférica promedio: %d\n", datos.PNM);
+                printf("Dirección del viento: %d\n", datos.DV);
+                printf("Velocidad del viento: %d\n", datos.FF);
+                printf("Precipitación pluvial: %d\n", datos.PP);
+                i++;
             }
         }
-        fclose(f);	
+        fclose(f);
+        if (i == 0) {
+            printf("El archivo no contiene registros válidos.\n");
+        }
     } else {
         perror("No se ha podido abrir el archivo");
     }
