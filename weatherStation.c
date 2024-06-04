@@ -4,18 +4,17 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define max 1000
-#define MIN_HUMIDITY 0
 #define MAX_HUMIDITY 100
-#define MIN_PRESSURE 900
+#define MIN_HUMIDITY 0
 #define MAX_PRESSURE 3500
-#define MIN_WIND_DIRECTION 0
+#define MIN_PRESSURE 900
 #define MAX_WIND_DIRECTION 360
+#define MIN_WIND_DIRECTION 0
 #define MIN_POSSIBLE_TEMP -274
 #define MAX_REGISTROS 100
 
-// registro encargado de almacenar todos los datos meteorologicos
-typedef struct regDiario{
+// Registro encargado de almacenar todos los datos meteorológicos
+typedef struct regDiario {
     long ddmmyyyy;
     int tmax;
     int tmin;
@@ -27,13 +26,13 @@ typedef struct regDiario{
     bool borrado; 
 } regDiario;
 
-typedef struct fecha{
+typedef struct fecha {
     int dd;
     int mm;
     int yyyy;
-}TFecha;
+} TFecha;
 
-typedef struct regDiarioC{
+typedef struct regDiarioC {
     TFecha ddmmyyyy;
     int tmax;
     int tmin;
@@ -43,9 +42,9 @@ typedef struct regDiarioC{
     int FF;
     int PP;
     bool borrado; 
-}regDiarioC;
+} regDiarioC;
 
-//dato compuesto que almacena un arreglo de registros regDiario y la cantidad de elementos en el arreglo
+// Dato compuesto que almacena un arreglo de registros regDiario y la cantidad de elementos en el arreglo
 typedef struct {
     regDiario* reg;
     int cant;
@@ -56,24 +55,24 @@ typedef struct {
     int cant;
 } TDatac;
 
-//dato compuesto que indica el tipo de los nodos de la LSE usada en algunas de las funciones del programa
+// Dato compuesto que indica el tipo de los nodos de la LSE usada en algunas de las funciones del programa
 typedef struct nodo {
     regDiario info;
     struct nodo *next;
 } TNodo;
 
-//perfiles de funciones principales
+// Perfiles de funciones principales
 int alta(char name[50]);
-int baja(int ddmmyyyy,char name[50]);
-void modificar(int ddmmyyyy,char name[50]);
+int baja(int ddmmyyyy, char name[50]);
+void modificar(int ddmmyyyy, char name[50]);
 void mostrar(char name[50]);
 int busqueda(TData a, long fecha, int cant);
-int busquedac(TDatac a,TFecha fecha,int ini, int fin);
+int busquedac(TDatac a, TFecha fecha, int ini, int fin);
 TNodo* temperaturaMax(char name[50]);
 TNodo* velocidadViento(char name[50]);
 TNodo* precipitacionMax(char name[50]);
 
-//perfiles de las funciones auxiliares
+// Perfiles de las funciones auxiliares
 TNodo* crearNodo(regDiario reg);
 int liberar(TNodo** head);
 void swap(regDiario *x, regDiario *y);
@@ -82,7 +81,7 @@ TDatac arregloDeArchivoC(char name[50]);
 void quickSort(regDiario arr[], int low, int high);
 int partition(regDiario arr[], int low, int high);
 
-//perfiles de las funciones llamadas por el switch
+// Perfiles de las funciones llamadas por el switch
 void opcion5(char name[50]);
 void opcion6(char name[50]);
 void opcion7(char name[50]);
@@ -96,124 +95,120 @@ int main() {
 
     printf("Ingrese el nombre del archivo: ");
     scanf(" %s", nameAr);
-    FILE* f = fopen(nameAr,"ab");
+    FILE* f = fopen(nameAr, "ab");
+    if (f == NULL) {
+        perror("No se pudo crear el archivo");
+        return 1;
+    }
     fclose(f);
+    
     do {
-        //menu que se mostrara cada vez que el usuario ejecute el programa
+        // Menú que se mostrará cada vez que el usuario ejecute el programa
         printf("\n-----------------------------------\n");
         printf("Alta de un registro diario (1)\n");
         printf("Suprimir un registro diario (2)\n");
         printf("Modificar un registro (3)\n");
         printf("Mostrar registros (4)\n");
         printf("Buscar registro y mostrar todos sus campos (5)\n");
-        printf("Listar dias de maxima temperatura (6)\n");
-        printf("Listar dias de maxima precipitacion (7)\n");
-        printf("Listar dias de mayor a menor velocidad de viento (8)\n");
+        printf("Listar días de máxima temperatura (6)\n");
+        printf("Listar días de máxima precipitación (7)\n");
+        printf("Listar días de mayor a menor velocidad de viento (8)\n");
         printf("Realizar copia de seguridad del año en curso (9)\n");
         printf("Salir (10)");
         printf("\n-----------------------------------\n");
-        printf("Ingrese una opcion: ");
-        fflush(stdout); fflush(stdin);
+        printf("Ingrese una opción: ");
+        fflush(stdout);
+        fflush(stdin);
         scanf("%d", &opcion);
         fflush(stdin);
 
-        switch (opcion){
+        switch (opcion) {
             case 1:
                 alta(nameAr);    
                 break;
-
             case 2:
                 printf("\nIngrese la fecha (ddmmyyyy) del registro que desea borrar: ");
                 scanf(" %ld", &fecha);
-                baja(fecha,nameAr);
+                baja(fecha, nameAr);
                 break;
-
             case 3:
-                printf("\n Ingrese la fecha (ddmmyyyy) del registro que desea modificar: ");
+                printf("\nIngrese la fecha (ddmmyyyy) del registro que desea modificar: ");
                 scanf(" %ld", &fecha);
-                modificar(fecha,nameAr);
+                modificar(fecha, nameAr);
                 break;
-
             case 4: 
                 mostrar(nameAr);
                 break;
-
             case 5:
                 opcion5(nameAr);
                 break;
-
             case 6:
                 opcion6(nameAr);
                 break;
-
             case 7:
                 opcion7(nameAr);
                 break;
-
             case 8:
                 opcion8(nameAr);
                 break;
-            
             case 9:
                 opcion9(nameAr);
                 break;
-
             case 10:
                 return 0;
                 break;
-
-            default: // la opcion no esta entre 1 y 10.
-                printf("\nOpcion invalida.\n");
+            default: // La opción no está entre 1 y 10.
+                printf("\nOpción inválida.\n");
                 break;
         }
     } while (1);
     return 0;
 }
 
-//definicion de las funciones principales
-int alta(char name[50]){
+// Definición de las funciones principales
+int alta(char name[50]) {
     regDiario datos;
-    FILE *f = fopen(name, "a");
+    FILE *f = fopen(name, "ab");
     
     if (f == NULL) {
         perror("No se ha podido abrir el archivo");
         return -1;
     }
 
-    //se realiza la carga de datos
-    printf("\nIngrese la fecha de hoy: ");
+    // Se realiza la carga de datos
+    printf("\nIngrese la fecha de hoy (ddmmyyyy): ");
     scanf("%ld", &datos.ddmmyyyy);
     
-    printf("Ingrese la temperatura maxima del dia: ");
+    printf("Ingrese la temperatura máxima del día: ");
     scanf("%d", &datos.tmax);
     
-    printf("Ingrese la temperatura minima del dia: ");
+    printf("Ingrese la temperatura mínima del día: ");
     scanf("%d", &datos.tmin);
     
     do {
-        printf("Ingrese el indice de humedad promedio del dia (entre %d y %d): ", MIN_HUMIDITY, MAX_HUMIDITY);
+        printf("Ingrese el índice de humedad promedio del día (entre %d y %d): ", MIN_HUMIDITY, MAX_HUMIDITY);
         scanf("%d", &datos.HUM);
     } while (datos.HUM < MIN_HUMIDITY || datos.HUM > MAX_HUMIDITY);
     
     do {
-        printf("Ingrese la presion atmosferica promedio (en hectopascales) del dia (entre %d y %d): ", MIN_PRESSURE, MAX_PRESSURE);
+        printf("Ingrese la presión atmosférica promedio (en hectopascales) del día (entre %d y %d): ", MIN_PRESSURE, MAX_PRESSURE);
         scanf("%d", &datos.PNM);
     } while (datos.PNM < MIN_PRESSURE || datos.PNM > MAX_PRESSURE);
     
     do {
-        printf("Ingrese la direccion (en grados, de %d a %d) del viento mas fuerte del dia: ", MIN_WIND_DIRECTION, MAX_WIND_DIRECTION);
+        printf("Ingrese la dirección (en grados, de %d a %d) del viento más fuerte del día: ", MIN_WIND_DIRECTION, MAX_WIND_DIRECTION);
         scanf("%d", &datos.DV);
     } while (datos.DV < MIN_WIND_DIRECTION || datos.DV > MAX_WIND_DIRECTION);
     
-    printf("Ingrese la maxima velocidad (km/h) de viento del dia: ");
+    printf("Ingrese la máxima velocidad (km/h) de viento del día: ");
     scanf("%d", &datos.FF);
     
-    printf("Ingrese la precipitacion pluvial del dia (en mm): ");
+    printf("Ingrese la precipitación pluvial del día (en mm): ");
     scanf("%d", &datos.PP);
     
     datos.borrado = false;
 
-    //los datos almacenados son escritos al archivo
+    // Los datos almacenados son escritos al archivo
     if (fwrite(&datos, sizeof(datos), 1, f) != 1) {
         perror("Error al escribir en el archivo");
         fclose(f);
@@ -222,23 +217,23 @@ int alta(char name[50]){
 
     fclose(f);
     
-    printf("\nRegistro añadido con exito!\n");
+    printf("\nRegistro añadido con éxito!\n");
     return 0;
 }
 
-int baja(int ddmmyyyy,char name[50]){
+int baja(int ddmmyyyy, char name[50]) {
     regDiario datos;
     FILE *f = fopen(name, "r+b");
     int registrosBorrados = 0;
     
-    if (f != NULL){
-        //recorro el archivo hasta encontrar un registro con la misma fecha que el parametro
+    if (f != NULL) {
+        // Recorro el archivo hasta encontrar un registro con la misma fecha que el parámetro
         while (fread(&datos, sizeof(regDiario), 1, f) != 0) {
             if (datos.ddmmyyyy == ddmmyyyy && datos.borrado == false) {
-                //una vez encontrado, aplico el borrado logico, escribiendo el cambio en el archivo
+                // Una vez encontrado, aplico el borrado lógico, escribiendo el cambio en el archivo
                 datos.borrado = true;
-                int pos = (ftell(f) - (sizeof(regDiario)));
-                fseek(f,pos,SEEK_SET);
+                int pos = (ftell(f) - sizeof(regDiario));
+                fseek(f, pos, SEEK_SET);
                 
                 if (fwrite(&datos, sizeof(datos), 1, f) != 1) {
                     perror("Error al escribir en el archivo");
@@ -254,7 +249,7 @@ int baja(int ddmmyyyy,char name[50]){
         fclose(f);
         
         if (registrosBorrados > 0) {
-            printf("Registro borrado con exito!\n");
+            printf("Registro borrado con éxito!\n");
         } else {
             printf("No se encontró ningún registro para borrar.\n");
         }
