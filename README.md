@@ -18,8 +18,9 @@ To give this program a try:
   sudo apt update
   sudo apt install build-essential
   ```
-  or with this command if you are on mac
+  or with this command if you are using mac with Homebrew
   ```
+  brew update
   brew install gcc
   ```
 - Check C compiler version to verify a successful installation:
