@@ -261,50 +261,47 @@ int baja(int ddmmyyyy, char name[50]) {
     } 
 }
 
-void modificar(int ddmmyyyy,char name[50]){
+void modificar(int ddmmyyyy, char name[50]) {
     regDiario nuevoReg;
     regDiario aux;
     FILE *f = fopen(name, "r+b");
     
-    if(f != NULL){
-        //recorro el archivo hasta encontrar un resgitro con la misma fecha que el parametro
+    if (f != NULL) {
+        // Recorro el archivo hasta encontrar un registro con la misma fecha que el parámetro
         while (fread(&aux, sizeof(regDiario), 1, f) != 0) {
-            if (aux.ddmmyyyy == ddmmyyyy) {
-                //realizo la carga de los datos modificados en una variable auxiliar
-                printf("Ingrese la fecha de hoy: \n");
-                scanf("%ld", &nuevoReg.ddmmyyyy);
-            
-                printf("Ingrese la temperatura maxima del dia: \n");
+            if (aux.ddmmyyyy == ddmmyyyy && aux.borrado == false) {
+                // Una vez encontrado, reemplazo con nuevos datos
+                printf("\nIngrese la nueva temperatura máxima del día: ");
                 scanf("%d", &nuevoReg.tmax);
-            
-                printf("Ingrese la temperatura minima del dia: \n");
+                
+                printf("Ingrese la nueva temperatura mínima del día: ");
                 scanf("%d", &nuevoReg.tmin);
-            
+                
                 do {
-                    printf("Ingrese el indice de humedad promedio del dia (entre %d y %d): \n", MIN_HUMIDITY, MAX_HUMIDITY);
+                    printf("Ingrese el nuevo índice de humedad promedio del día (entre %d y %d): ", MIN_HUMIDITY, MAX_HUMIDITY);
                     scanf("%d", &nuevoReg.HUM);
                 } while (nuevoReg.HUM < MIN_HUMIDITY || nuevoReg.HUM > MAX_HUMIDITY);
-            
+                
                 do {
-                    printf("Ingrese la presion atmosferica promedio (PNM) del dia (entre %d y %d): \n", MIN_PRESSURE, MAX_PRESSURE);
+                    printf("Ingrese la nueva presión atmosférica promedio (en hectopascales) del día (entre %d y %d): ", MIN_PRESSURE, MAX_PRESSURE);
                     scanf("%d", &nuevoReg.PNM);
                 } while (nuevoReg.PNM < MIN_PRESSURE || nuevoReg.PNM > MAX_PRESSURE);
-            
+                
                 do {
-                    printf("Ingrese la direccion (en grados, de %d a %d) del viento mas fuerte del dia: \n", MIN_WIND_DIRECTION, MAX_WIND_DIRECTION);
+                    printf("Ingrese la nueva dirección (en grados, de %d a %d) del viento más fuerte del día: ", MIN_WIND_DIRECTION, MAX_WIND_DIRECTION);
                     scanf("%d", &nuevoReg.DV);
                 } while (nuevoReg.DV < MIN_WIND_DIRECTION || nuevoReg.DV > MAX_WIND_DIRECTION);
-            
-                printf("Ingrese la maxima velocidad de viento del dia: \n");
+                
+                printf("Ingrese la nueva máxima velocidad (km/h) de viento del día: ");
                 scanf("%d", &nuevoReg.FF);
-            
-                printf("Ingrese la precipitacion pluvial del dia: \n");
+                
+                printf("Ingrese la nueva precipitación pluvial del día (en mm): ");
                 scanf("%d", &nuevoReg.PP);
                 
                 nuevoReg.borrado = false;
+                nuevoReg.ddmmyyyy = ddmmyyyy;
 
-                //sobreescribo el registro con los datos antiguos con los nuevos datos
-                int pos = (ftell(f) - (sizeof(regDiario)));
+                int pos = (ftell(f) - sizeof(regDiario));
                 fseek(f, pos, SEEK_SET);
                 
                 if (fwrite(&nuevoReg, sizeof(nuevoReg), 1, f) != 1) {
@@ -313,11 +310,12 @@ void modificar(int ddmmyyyy,char name[50]){
                     return;
                 }
                 
-                printf("Registro modificado con exito!\n");
-                fclose(f);
-                return;
+                break; // Deja de buscar una vez que se ha modificado el registro
             }
         }
+        
+        fclose(f);
+        printf("\nRegistro modificado con éxito!\n");
     } else {
         perror("No se ha podido abrir el archivo");
     }
