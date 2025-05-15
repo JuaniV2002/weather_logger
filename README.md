@@ -1,37 +1,55 @@
-# Weather program 
-The aim of this program is to store the data a weather station would need, like max and minimum temperatures, humidity index, wind speed, among others. To effectively store the data, it uses a file where all those registers are saved. 
+# Meteorological Daily Records Management System
 
-It offers these options:
-- _Añadir nuevo registro_ (New register): this option will allow the user to input the weather data and save it in the file.
-- _Suprimir registro diario_ (Delete register): it will delete a register from the file.
-- _Modificar registro diario_ (Modify register): given a date, it will allow you to modify the data of the register with that date.
-- _Mostrar registros diarios_ (Show registers): this function will show all the registers in the file.
-- _Buscar registro_ (Search register): as the name suggests, it will look for a certain register using the date (passed to the function as a parameter).
-- _Mostar dias de maxima temperatura_ (Show days of maximum temperature): it will show the dates where there was a maximum temperature.
-- _Mostrar dias de maxima precipitacion_ (Show days of maximum rainfall): it will sort the days of maximum rainfall and show the dates.
-- _Mostrar dias de maxima velocidad de viento_ (Show days of max windspeed): as the previous option, it will sort and show windspeed numbers and the dates.
-- _Realizar copia de seguridad_ (Make a backup): it will backup all the active registers into a new file. 
+## Overview
 
-To give this program a try:
-- Install gcc with this command:
-  ```
-  sudo apt update
-  sudo apt install build-essential
-  ```
-  or with this command if you are using mac with Homebrew
-  ```
-  brew update
-  brew install gcc
-  ```
-- Check C compiler version to verify a successful installation:
-  ```
-  gcc --version
-  ```
-- Compile the program:
-  ```
-  gcc -o weatherStation weatherStation.c
-  ```
-- Run the program:
-  ```
-  ./weatherStation
-  ``` 
+This C program is a command-line application designed to **manage, analyze, and back up daily meteorological records**. Users can add, modify, delete, search, and list weather data stored in binary files. The program handles data such as temperature, humidity, pressure, wind speed/direction, and precipitation for each day, providing an organized way to keep and analyze local weather history.
+
+## Features
+
+- **Add new daily records** with meteorological data (date, temperature, humidity, pressure, wind, precipitation)
+- **Logical deletion** of records (without physical removal from file)
+- **Modify existing records** based on date
+- **Display all stored records**
+- **Search for a record** by date and display its details
+- **List days with:**
+  - Maximum temperature
+  - Maximum precipitation
+  - Highest wind speed (top 10 days)
+- **Create a backup** of the current year’s data (excluding deleted records)
+
+## Data Structure
+
+- **regDiario**: Structure containing all meteorological data for one day, including:
+  - Date (`ddmmyyyy`)
+  - Max/Min temperature
+  - Humidity
+  - Atmospheric pressure
+  - Wind direction and speed
+  - Precipitation
+  - Logical deletion flag
+
+- **TData**: Struct holding an array of `regDiario` records and its count, used for in-memory processing.
+
+- **Linked lists**: Used for sorted reporting (temperature, wind speed, precipitation rankings).
+
+## How It Works
+
+- All data is stored in a **binary file** specified by the user at program start.
+- Records are never physically deleted—**logical deletion** is performed by a boolean flag.
+- User interacts via a text-based menu to perform all actions.
+- QuickSort is used internally to sort records for reports.
+- Backup files are created by copying valid (not deleted) records to a new file prefixed with `copia_seguridad_`.
+
+## Usage
+
+### Compile the program
+
+```sh
+gcc -o weatherStation weatherStation.c
+```
+
+### Run the program
+
+```sh
+./weatherStation
+```
