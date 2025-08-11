@@ -45,7 +45,7 @@ This C program is a command-line application designed to **manage and analyze da
 ### Compile the program
 
 ```sh
-gcc -Wall -Wextra -std=c11 -o weatherStation weatherStation.c
+gcc -o weatherStation weatherStation.c
 ```
 
 ### Run the program
@@ -54,7 +54,7 @@ gcc -Wall -Wextra -std=c11 -o weatherStation weatherStation.c
 ./weatherStation
 ```
 
-At startup, the app begins with an empty in-memory dataset. Use the menu option “Load data from CSV file (9)” to load from a CSV (default sample provided as `weather.csv`). Dates must be entered as DD/MM/YYYY. On exit, you’ll be asked if you want to save changes back to the CSV file (using the most recently loaded filename).
+At startup, the app begins with an empty in-memory dataset. Use the menu option “Load data from CSV file (9)” to load from a CSV (default sample provided as `weather.csv`).
 
 Sample data:
 - A ready-to-use sample CSV `weather.csv` with 10 records is included so you can try listing, searching, and reporting immediately.
