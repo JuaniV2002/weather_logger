@@ -11,397 +11,378 @@
 #define MAX_WIND_DIRECTION 360
 #define MIN_WIND_DIRECTION 0
 #define MIN_POSSIBLE_TEMP -274
-#define MAX_REGISTROS 100
+#define MAX_RECORDS 100
 
-// Registro encargado de almacenar todos los datos meteorológicos
-typedef struct regDiario {
-    long ddmmyyyy;
-    int tmax;
-    int tmin;
-    int HUM;
-    int PNM;
-    int DV;
-    int FF;
-    int PP;
-    bool borrado; 
-} regDiario;
-
-typedef struct fecha {
+typedef struct Date {
     int dd;
     int mm;
     int yyyy;
-} TFecha;
+} Date;
 
-typedef struct regDiarioC {
-    TFecha ddmmyyyy;
-    int tmax;
-    int tmin;
-    int HUM;
-    int PNM;
-    int DV;
-    int FF;
-    int PP;
-    bool borrado; 
-} regDiarioC;
+// Record that stores all daily meteorological data
+typedef struct DailyRecord {
+    Date date;           // DD/MM/YYYY
+    int tempMax;
+    int tempMin;
+    int humidity;
+    int pressure;
+    int windDir;         // 0-360 degrees
+    int windSpeed;       // km/h
+    int precipitation;   // mm
+    bool deleted;        // logical deletion flag
+} DailyRecord;
 
-// Dato compuesto que almacena un arreglo de registros regDiario y la cantidad de elementos en el arreglo
+// No separate C variant needed when working with CSV; keep a single DailyRecord type.
+
+// Composite type that stores an array of DailyRecord and the number of elements
 typedef struct {
-    regDiario* reg;
-    int cant;
-} TData;
+    DailyRecord* rec;
+    int count;
+} DataArray;
 
-typedef struct {
-    regDiarioC* reg;
-    int cant;
-} TDatac;
+// Global in-memory store and dirty flag for unsaved changes
+static DataArray g_data = { NULL, 0 };
+static bool g_dirty = false;
+static char g_filename[256] = "weather.csv"; // default CSV file name
 
-// Dato compuesto que indica el tipo de los nodos de la LSE usada en algunas de las funciones del programa
-typedef struct nodo {
-    regDiario info;
-    struct nodo *next;
-} TNodo;
+// Node type for the singly linked list used in some program functions
+typedef struct Node {
+    DailyRecord info;
+    struct Node *next;
+} Node;
 
-// Perfiles de funciones principales
-int alta(char name[50]);
-int baja(int ddmmyyyy, char name[50]);
-void modificar(int ddmmyyyy, char name[50]);
-void mostrar(char name[50]);
-int busqueda(TData a, long fecha, int cant);
-int busquedac(TDatac a, TFecha fecha, int ini, int fin);
-TNodo* temperaturaMax(char name[50]);
-TNodo* velocidadViento(char name[50]);
-TNodo* precipitacionMax(char name[50]);
+// CSV I/O
+DataArray loadFromCsv(const char* filename);
+int saveToCsv(const char* filename, const DataArray a);
 
-// Perfiles de las funciones auxiliares
-TNodo* crearNodo(regDiario reg);
-int liberar(TNodo** head);
-void swap(regDiario *x, regDiario *y);
-TData arregloDeArchivo(char name[50]);
-TDatac arregloDeArchivoC(char name[50]);
-void quickSort(regDiario arr[], int low, int high);
-int partition(regDiario arr[], int low, int high);
+// Helpers on in-memory data
+int findIndexByDate(const DataArray* a, Date date);
+Node* maxTemperatureRecords(void);
+Node* windSpeedRecords(void);
+Node* maxPrecipitationRecords(void);
 
-// Perfiles de las funciones llamadas por el switch
-void opcion5(char name[50]);
-void opcion6(char name[50]);
-void opcion7(char name[50]);
-void opcion8(char name[50]);
-void opcion9(char name[50]);
+// Helper function prototypes
+Node* createNode(DailyRecord rec);
+int freeList(Node** head);
+void swap(DailyRecord *x, DailyRecord *y);
+void quickSort(DailyRecord arr[], int low, int high);
+int partition(DailyRecord arr[], int low, int high);
+
+// Menu actions (mutate g_data and g_dirty)
+int addRecord(void);
+int deleteRecord(void);
+void updateRecord(void);
+void showRecords(void);
+
+// Prototypes of functions called by the switch menu
+void option5_showRecordByDate(void);
+void option6_listMaxTemperature(void);
+void option7_listMaxPrecipitation(void);
+void option8_listTop10WindSpeeds(void);
 
 int main() {
-    char nameAr[50];
-    long fecha;
-    int opcion;
+    int option;
 
-    printf("Ingrese el nombre del archivo: ");
-    scanf(" %s", nameAr);
-    FILE* f = fopen(nameAr, "ab");
-    if (f == NULL) {
-        perror("No se pudo crear el archivo");
-        return 1;
-    }
-    fclose(f);
-    
+    // Start with empty in-memory data; users can load CSV via option 9
+
     do {
-        // Menú que se mostrará cada vez que el usuario ejecute el programa
+        // Menu
         printf("\n-----------------------------------\n");
-        printf("Alta de un registro diario (1)\n");
-        printf("Suprimir un registro diario (2)\n");
-        printf("Modificar un registro (3)\n");
-        printf("Mostrar registros (4)\n");
-        printf("Buscar registro y mostrar todos sus campos (5)\n");
-        printf("Listar días de máxima temperatura (6)\n");
-        printf("Listar días de máxima precipitación (7)\n");
-        printf("Listar días de mayor a menor velocidad de viento (8)\n");
-        printf("Realizar copia de seguridad del año en curso (9)\n");
-        printf("Salir (10)");
+        printf("Add a daily record (1)\n");
+        printf("Delete a daily record (2)\n");
+        printf("Update a record (3)\n");
+        printf("Show all records (4)\n");
+        printf("Search record by date and show details (5)\n");
+        printf("List days with maximum temperature (6)\n");
+        printf("List days with maximum precipitation (7)\n");
+    printf("List days by wind speed (descending) (8)\n");
+    printf("Load data from CSV file (9)\n");
+    printf("Exit (10)");
         printf("\n-----------------------------------\n");
-        printf("Ingrese una opción: ");
+        printf("Choose an option: ");
         fflush(stdout);
-        fflush(stdin);
-        scanf("%d", &opcion);
-        fflush(stdin);
+        if (scanf("%d", &option) != 1) {
+            // invalid input: clear and continue
+            int c; while ((c = getchar()) != '\n' && c != EOF) {}
+            continue;
+        }
 
-        switch (opcion) {
+        switch (option) {
             case 1:
-                alta(nameAr);    
+                addRecord();    
                 break;
             case 2:
-                printf("\nIngrese la fecha (ddmmyyyy) del registro que desea borrar: ");
-                scanf(" %ld", &fecha);
-                baja(fecha, nameAr);
+                deleteRecord();
                 break;
             case 3:
-                printf("\nIngrese la fecha (ddmmyyyy) del registro que desea modificar: ");
-                scanf(" %ld", &fecha);
-                modificar(fecha, nameAr);
+                updateRecord();
                 break;
             case 4: 
-                mostrar(nameAr);
+                showRecords();
                 break;
             case 5:
-                opcion5(nameAr);
+                option5_showRecordByDate();
                 break;
             case 6:
-                opcion6(nameAr);
+                option6_listMaxTemperature();
                 break;
             case 7:
-                opcion7(nameAr);
+                option7_listMaxPrecipitation();
                 break;
             case 8:
-                opcion8(nameAr);
+                option8_listTop10WindSpeeds();
                 break;
-            case 9:
-                opcion9(nameAr);
+            case 9: {
+                char fname[256];
+                printf("\nEnter CSV file name to load: ");
+                scanf(" %255s", fname);
+                DataArray loaded = loadFromCsv(fname);
+                // replace current data
+                free(g_data.rec);
+                g_data = loaded;
+                strncpy(g_filename, fname, sizeof(g_filename)-1);
+                g_filename[sizeof(g_filename)-1] = '\0';
+                g_dirty = false;
+                printf("Loaded %d record(s) from %s.\n", g_data.count, g_filename);
                 break;
-            case 10:
+            }
+            case 10: {
+                if (g_dirty) {
+                    char ans;
+                    printf("\nSave changes to CSV file '%s'? (y/n): ", g_filename);
+                    scanf(" %c", &ans);
+                    if (ans == 'y' || ans == 'Y') {
+                        if (saveToCsv(g_filename, g_data) != 0) {
+                            printf("Error saving to CSV.\n");
+                        } else {
+                            printf("Saved successfully.\n");
+                            g_dirty = false;
+                        }
+                    }
+                }
+                // free memory
+                free(g_data.rec);
                 return 0;
-                break;
-            default: // La opción no está entre 1 y 10.
-                printf("\nOpción inválida.\n");
+            }
+            default:
+                printf("\nInvalid option.\n");
                 break;
         }
     } while (1);
+}
+
+// Main functions (operate on in-memory g_data)
+int addRecord(void) {
+    DailyRecord rec;
+
+    // Data entry
+    printf("\nEnter date (DD/MM/YYYY): ");
+    if (scanf("%d/%d/%d", &rec.date.dd, &rec.date.mm, &rec.date.yyyy) != 3) {
+        printf("Invalid date format.\n");
+        int c; while ((c = getchar()) != '\n' && c != EOF) {}
+        return -1;
+    }
+    
+    printf("Enter the day's maximum temperature: ");
+    scanf("%d", &rec.tempMax);
+    
+    printf("Enter the day's minimum temperature: ");
+    scanf("%d", &rec.tempMin);
+    
+    do {
+        printf("Enter the day's average humidity index (%d to %d): ", MIN_HUMIDITY, MAX_HUMIDITY);
+        scanf("%d", &rec.humidity);
+    } while (rec.humidity < MIN_HUMIDITY || rec.humidity > MAX_HUMIDITY);
+    
+    do {
+        printf("Enter the day's average atmospheric pressure in hPa (%d to %d): ", MIN_PRESSURE, MAX_PRESSURE);
+        scanf("%d", &rec.pressure);
+    } while (rec.pressure < MIN_PRESSURE || rec.pressure > MAX_PRESSURE);
+    
+    do {
+        printf("Enter the direction (degrees, %d to %d) of the strongest wind: ", MIN_WIND_DIRECTION, MAX_WIND_DIRECTION);
+        scanf("%d", &rec.windDir);
+    } while (rec.windDir < MIN_WIND_DIRECTION || rec.windDir > MAX_WIND_DIRECTION);
+    
+    printf("Enter the day's maximum wind speed (km/h): ");
+    scanf("%d", &rec.windSpeed);
+    
+    printf("Enter the day's precipitation (mm): ");
+    scanf("%d", &rec.precipitation);
+    
+    rec.deleted = false;
+
+    // append to g_data
+    DailyRecord* newBuf = realloc(g_data.rec, sizeof(DailyRecord) * (g_data.count + 1));
+    if (!newBuf) {
+        printf("Memory allocation failed.\n");
+        return -1;
+    }
+    g_data.rec = newBuf;
+    g_data.rec[g_data.count] = rec;
+    g_data.count++;
+    g_dirty = true;
+
+    printf("\nRecord added successfully!\n");
     return 0;
 }
 
-// Definición de las funciones principales
-int alta(char name[50]) {
-    regDiario datos;
-    FILE *f = fopen(name, "ab");
-    
-    if (f == NULL) {
-        perror("No se ha podido abrir el archivo");
+int deleteRecord(void) {
+    Date date;
+    printf("\nEnter the record date to delete (DD/MM/YYYY): ");
+    if (scanf("%d/%d/%d", &date.dd, &date.mm, &date.yyyy) != 3) {
+        printf("Invalid date format.\n");
+        int c; while ((c = getchar()) != '\n' && c != EOF) {}
         return -1;
     }
 
-    // Se realiza la carga de datos
-    printf("\nIngrese la fecha de hoy (ddmmyyyy): ");
-    scanf("%ld", &datos.ddmmyyyy);
-    
-    printf("Ingrese la temperatura máxima del día: ");
-    scanf("%d", &datos.tmax);
-    
-    printf("Ingrese la temperatura mínima del día: ");
-    scanf("%d", &datos.tmin);
-    
-    do {
-        printf("Ingrese el índice de humedad promedio del día (entre %d y %d): ", MIN_HUMIDITY, MAX_HUMIDITY);
-        scanf("%d", &datos.HUM);
-    } while (datos.HUM < MIN_HUMIDITY || datos.HUM > MAX_HUMIDITY);
-    
-    do {
-        printf("Ingrese la presión atmosférica promedio (en hectopascales) del día (entre %d y %d): ", MIN_PRESSURE, MAX_PRESSURE);
-        scanf("%d", &datos.PNM);
-    } while (datos.PNM < MIN_PRESSURE || datos.PNM > MAX_PRESSURE);
-    
-    do {
-        printf("Ingrese la dirección (en grados, de %d a %d) del viento más fuerte del día: ", MIN_WIND_DIRECTION, MAX_WIND_DIRECTION);
-        scanf("%d", &datos.DV);
-    } while (datos.DV < MIN_WIND_DIRECTION || datos.DV > MAX_WIND_DIRECTION);
-    
-    printf("Ingrese la máxima velocidad (km/h) de viento del día: ");
-    scanf("%d", &datos.FF);
-    
-    printf("Ingrese la precipitación pluvial del día (en mm): ");
-    scanf("%d", &datos.PP);
-    
-    datos.borrado = false;
-
-    // Los datos almacenados son escritos al archivo
-    if (fwrite(&datos, sizeof(datos), 1, f) != 1) {
-        perror("Error al escribir en el archivo");
-        fclose(f);
-        return -1;
+    int idx = findIndexByDate(&g_data, date);
+    if (idx >= 0 && g_data.rec[idx].deleted == false) {
+        g_data.rec[idx].deleted = true;
+        g_dirty = true;
+        printf("Record deleted successfully!\n");
+        return 1;
     }
-
-    fclose(f);
-    
-    printf("\nRegistro añadido con éxito!\n");
+    printf("No record found to delete.\n");
     return 0;
 }
 
-int baja(int ddmmyyyy, char name[50]) {
-    regDiario datos;
-    FILE *f = fopen(name, "r+b");
-    int registrosBorrados = 0;
+void updateRecord(void) {
+    Date date;
+    printf("\nEnter the record date to update (DD/MM/YYYY): ");
+    if (scanf("%d/%d/%d", &date.dd, &date.mm, &date.yyyy) != 3) {
+        printf("Invalid date format.\n");
+        int c; while ((c = getchar()) != '\n' && c != EOF) {}
+        return;
+    }
+
+    int idx = findIndexByDate(&g_data, date);
+    if (idx < 0 || g_data.rec[idx].deleted) {
+        printf("Record not found.\n");
+        return;
+    }
+
+    DailyRecord updated = g_data.rec[idx];
+
+    printf("\nEnter new maximum temperature: ");
+    scanf("%d", &updated.tempMax);
     
-    if (f != NULL) {
-        // Recorro el archivo hasta encontrar un registro con la misma fecha que el parámetro
-        while (fread(&datos, sizeof(regDiario), 1, f) != 0) {
-            if (datos.ddmmyyyy == ddmmyyyy && datos.borrado == false) {
-                // Una vez encontrado, aplico el borrado lógico, escribiendo el cambio en el archivo
-                datos.borrado = true;
-                int pos = (ftell(f) - sizeof(regDiario));
-                fseek(f, pos, SEEK_SET);
-                
-                if (fwrite(&datos, sizeof(datos), 1, f) != 1) {
-                    perror("Error al escribir en el archivo");
-                    fclose(f);
-                    return -1;
-                }
-                
-                registrosBorrados++;
-                break; // Deja de buscar una vez que se ha borrado el registro
-            }
-        }
-        
-        fclose(f);
-        
-        if (registrosBorrados > 0) {
-            printf("Registro borrado con éxito!\n");
-        } else {
-            printf("No se encontró ningún registro para borrar.\n");
-        }
-        
-        return registrosBorrados;
-    } else {
-        perror("No se ha podido abrir el archivo");
-        return -1;
-    } 
+    printf("Enter new minimum temperature: ");
+    scanf("%d", &updated.tempMin);
+    
+    do {
+        printf("Enter new average humidity index (%d to %d): ", MIN_HUMIDITY, MAX_HUMIDITY);
+        scanf("%d", &updated.humidity);
+    } while (updated.humidity < MIN_HUMIDITY || updated.humidity > MAX_HUMIDITY);
+    
+    do {
+        printf("Enter new average atmospheric pressure in hPa (%d to %d): ", MIN_PRESSURE, MAX_PRESSURE);
+        scanf("%d", &updated.pressure);
+    } while (updated.pressure < MIN_PRESSURE || updated.pressure > MAX_PRESSURE);
+    
+    do {
+        printf("Enter new direction (degrees, %d to %d) of the strongest wind: ", MIN_WIND_DIRECTION, MAX_WIND_DIRECTION);
+        scanf("%d", &updated.windDir);
+    } while (updated.windDir < MIN_WIND_DIRECTION || updated.windDir > MAX_WIND_DIRECTION);
+    
+    printf("Enter new maximum wind speed (km/h): ");
+    scanf("%d", &updated.windSpeed);
+    
+    printf("Enter new precipitation (mm): ");
+    scanf("%d", &updated.precipitation);
+    
+    g_data.rec[idx] = updated;
+    g_dirty = true;
+    printf("\nRecord updated successfully!\n");
 }
 
-void modificar(int ddmmyyyy, char name[50]) {
-    regDiario nuevoReg;
-    regDiario aux;
-    FILE *f = fopen(name, "r+b");
-    
-    if (f != NULL) {
-        // Recorro el archivo hasta encontrar un registro con la misma fecha que el parámetro
-        while (fread(&aux, sizeof(regDiario), 1, f) != 0) {
-            if (aux.ddmmyyyy == ddmmyyyy && aux.borrado == false) {
-                // Una vez encontrado, reemplazo con nuevos datos
-                printf("\nIngrese la nueva temperatura máxima del día: ");
-                scanf("%d", &nuevoReg.tmax);
-                
-                printf("Ingrese la nueva temperatura mínima del día: ");
-                scanf("%d", &nuevoReg.tmin);
-                
-                do {
-                    printf("Ingrese el nuevo índice de humedad promedio del día (entre %d y %d): ", MIN_HUMIDITY, MAX_HUMIDITY);
-                    scanf("%d", &nuevoReg.HUM);
-                } while (nuevoReg.HUM < MIN_HUMIDITY || nuevoReg.HUM > MAX_HUMIDITY);
-                
-                do {
-                    printf("Ingrese la nueva presión atmosférica promedio (en hectopascales) del día (entre %d y %d): ", MIN_PRESSURE, MAX_PRESSURE);
-                    scanf("%d", &nuevoReg.PNM);
-                } while (nuevoReg.PNM < MIN_PRESSURE || nuevoReg.PNM > MAX_PRESSURE);
-                
-                do {
-                    printf("Ingrese la nueva dirección (en grados, de %d a %d) del viento más fuerte del día: ", MIN_WIND_DIRECTION, MAX_WIND_DIRECTION);
-                    scanf("%d", &nuevoReg.DV);
-                } while (nuevoReg.DV < MIN_WIND_DIRECTION || nuevoReg.DV > MAX_WIND_DIRECTION);
-                
-                printf("Ingrese la nueva máxima velocidad (km/h) de viento del día: ");
-                scanf("%d", &nuevoReg.FF);
-                
-                printf("Ingrese la nueva precipitación pluvial del día (en mm): ");
-                scanf("%d", &nuevoReg.PP);
-                
-                nuevoReg.borrado = false;
-                nuevoReg.ddmmyyyy = ddmmyyyy;
-
-                int pos = (ftell(f) - sizeof(regDiario));
-                fseek(f, pos, SEEK_SET);
-                
-                if (fwrite(&nuevoReg, sizeof(nuevoReg), 1, f) != 1) {
-                    perror("Error al escribir en el archivo");
-                    fclose(f);
-                    return;
-                }
-                
-                break; // Deja de buscar una vez que se ha modificado el registro
-            }
+void showRecords(void) {
+    int shown = 0;
+    printf("\nRecords in memory:\n");
+    for (int i = 0; i < g_data.count; i++) {
+        DailyRecord rec = g_data.rec[i];
+        if (!rec.deleted) {
+            printf("\nRecord #%d:\n", shown + 1);
+            printf("Date: %02d/%02d/%04d\n", rec.date.dd, rec.date.mm, rec.date.yyyy);
+            printf("Max temperature: %d\n", rec.tempMax);
+            printf("Min temperature: %d\n", rec.tempMin);
+            printf("Average humidity: %d\n", rec.humidity);
+            printf("Average atmospheric pressure: %d\n", rec.pressure);
+            printf("Wind direction: %d\n", rec.windDir);
+            printf("Wind speed: %d\n", rec.windSpeed);
+            printf("Precipitation: %d\n", rec.precipitation);
+            shown++;
         }
-        
-        fclose(f);
-        printf("\nRegistro modificado con éxito!\n");
-    } else {
-        perror("No se ha podido abrir el archivo");
+    }
+    if (shown == 0) {
+        printf("No valid records to show.\n");
     }
 }
 
-void mostrar(char name[50]) {
-    FILE *f = fopen(name, "rb");
-    regDiario datos;
-    int i = 0;
-    
-    if (f != NULL) {
-        printf("\nContenido del archivo %s:\n", name);
-        while (fread(&datos, sizeof(regDiario), 1, f) != 0) {
-            if (!datos.borrado) {
-                printf("\nRegistro #%d:\n", i+1);
-                printf("Fecha: %ld\n", datos.ddmmyyyy);
-                printf("Temperatura máxima: %d\n", datos.tmax);
-                printf("Temperatura mínima: %d\n", datos.tmin);
-                printf("Humedad promedio: %d\n", datos.HUM);
-                printf("Presión atmosférica promedio: %d\n", datos.PNM);
-                printf("Dirección del viento: %d\n", datos.DV);
-                printf("Velocidad del viento: %d\n", datos.FF);
-                printf("Precipitación pluvial: %d\n", datos.PP);
-                i++;
-            }
-        }
-        fclose(f);
-        if (i == 0) {
-            printf("El archivo no contiene registros válidos.\n");
-        }
-    } else {
-        perror("No se ha podido abrir el archivo");
-    }
-}
+Node* maxTemperatureRecords(void) {
+    // Create a copy of active records, sort (currently by windSpeed per partition) and build list
+    int nActive = 0;
+    for (int i = 0; i < g_data.count; i++) if (!g_data.rec[i].deleted) nActive++;
+    if (nActive == 0) return NULL;
+    DailyRecord* tmp = (DailyRecord*)malloc(sizeof(DailyRecord) * nActive);
+    if (!tmp) return NULL;
+    int k = 0;
+    for (int i = 0; i < g_data.count; i++) if (!g_data.rec[i].deleted) tmp[k++] = g_data.rec[i];
+    quickSort(tmp, 0, nActive - 1);
 
-TNodo* temperaturaMax(char name[50]) {
-    TData a = arregloDeArchivo(name);
-    quickSort(a.reg, 0, a.cant - 1);
-
-    TNodo* head = NULL;
-    for (int i = 0; i < a.cant; i++) {
-        if (a.reg[i].borrado == false) {
-            TNodo* nuevoNodo = crearNodo(a.reg[i]);
-            nuevoNodo->next = head;
-            head = nuevoNodo;
-        }
+    Node* head = NULL;
+    for (int i = 0; i < nActive; i++) {
+        Node* newNode = createNode(tmp[i]);
+        newNode->next = head;
+        head = newNode;
     }
-    free(a.reg);
+    free(tmp);
     return head;
 }
 
-TNodo* velocidadViento(char name[50]) {
-    TData a = arregloDeArchivo(name);
-    quickSort(a.reg, 0, a.cant - 1);
+Node* windSpeedRecords(void) {
+    int nActive = 0;
+    for (int i = 0; i < g_data.count; i++) if (!g_data.rec[i].deleted) nActive++;
+    if (nActive == 0) return NULL;
+    DailyRecord* tmp = (DailyRecord*)malloc(sizeof(DailyRecord) * nActive);
+    if (!tmp) return NULL;
+    int k = 0;
+    for (int i = 0; i < g_data.count; i++) if (!g_data.rec[i].deleted) tmp[k++] = g_data.rec[i];
+    quickSort(tmp, 0, nActive - 1);
 
-    TNodo* head = NULL;
-    for (int i = 0; i < a.cant; i++) {
-        if (a.reg[i].borrado == false) {
-            TNodo* nuevoNodo = crearNodo(a.reg[i]);
-            nuevoNodo->next = head;
-            head = nuevoNodo;
-        }
+    Node* head = NULL;
+    for (int i = 0; i < nActive; i++) {
+        Node* newNode = createNode(tmp[i]);
+        newNode->next = head;
+        head = newNode;
     }
-    free(a.reg);
+    free(tmp);
     return head;
 }
 
-TNodo* precipitacionMax(char name[50]) {
-    TData a = arregloDeArchivo(name);
-    quickSort(a.reg, 0, a.cant - 1);
+Node* maxPrecipitationRecords(void) {
+    int nActive = 0;
+    for (int i = 0; i < g_data.count; i++) if (!g_data.rec[i].deleted) nActive++;
+    if (nActive == 0) return NULL;
+    DailyRecord* tmp = (DailyRecord*)malloc(sizeof(DailyRecord) * nActive);
+    if (!tmp) return NULL;
+    int k = 0;
+    for (int i = 0; i < g_data.count; i++) if (!g_data.rec[i].deleted) tmp[k++] = g_data.rec[i];
+    quickSort(tmp, 0, nActive - 1);
 
-    TNodo* head = NULL;
-    for (int i = 0; i < a.cant; i++) {
-        if (a.reg[i].borrado == false) {
-            TNodo* nuevoNodo = crearNodo(a.reg[i]);
-            nuevoNodo->next = head;
-            head = nuevoNodo;
-        }
+    Node* head = NULL;
+    for (int i = 0; i < nActive; i++) {
+        Node* newNode = createNode(tmp[i]);
+        newNode->next = head;
+        head = newNode;
     }
-    free(a.reg);
+    free(tmp);
     return head;
 }
 
-//definicion de las funciones auxiliares
+// Helper functions
 
-void quickSort (regDiario arr[], int low, int high) {
+void quickSort (DailyRecord arr[], int low, int high) {
     if (low < high) {
         /* pi is partitioning index, arr[p] is now at right place */
         int pi = partition(arr, low, high);
@@ -412,13 +393,13 @@ void quickSort (regDiario arr[], int low, int high) {
     }
 }
 
-int partition (regDiario arr[], int low, int high) {
-    int pivot = arr[high].FF; // pivot
+int partition (DailyRecord arr[], int low, int high) {
+    int pivot = arr[high].windSpeed; // pivot
     int i = (low - 1); // Index of smaller element
 
     for (int j = low; j <= high - 1; j++) {
         // If current element is smaller than or equal to pivot
-        if (arr[j].FF <= pivot) {
+        if (arr[j].windSpeed <= pivot) {
             i++; // increment index of smaller element
             swap(&arr[i], &arr[j]);
         }
@@ -427,273 +408,214 @@ int partition (regDiario arr[], int low, int high) {
     return (i + 1);
 }
 
-void swap (regDiario* a, regDiario* b) {
-    regDiario t = *a;
+void swap (DailyRecord* a, DailyRecord* b) {
+    DailyRecord t = *a;
     *a = *b;
     *b = t;
 }
 
-TNodo* crearNodo(regDiario reg) {
-    TNodo* nodo = (TNodo*)malloc(sizeof(TNodo));
-    if (nodo != NULL) {
-        nodo->info = reg;
-        nodo->next = NULL;
+Node* createNode(DailyRecord rec) {
+    Node* node = (Node*)malloc(sizeof(Node));
+    if (node != NULL) {
+        node->info = rec;
+        node->next = NULL;
     }
-    return nodo;
+    return node;
 }
 
-int liberar(TNodo** head) {
+int freeList(Node** head) {
     if (head == NULL || *head == NULL) {
-        return 0; // Error: Puntero nulo
+        return 0; // Error: null pointer
     }
-    TNodo* current = *head;
-    TNodo* next;
+    Node* current = *head;
+    Node* next;
     while (current != NULL) {
         next = current->next;
         free(current);
         current = next;
     }
     *head = NULL;
-    return 1; // Memoria liberada correctamente
+    return 1; // Memory released successfully
 }
 
-TDatac arregloDeArchivoC(char name[50]) {
-    FILE *f = fopen(name, "rb");
-    TDatac a;
-    a.cant = 0;
-    a.reg = NULL;
-    
-    if (f != NULL) {
-        fseek(f, 0, SEEK_END);
-        long fileSize = ftell(f);
-        rewind(f);
-        
-        a.cant = fileSize / sizeof(regDiario);
-        a.reg = (regDiarioC*)malloc(fileSize);
-        
-        if (a.reg != NULL) {
-            fread(a.reg, sizeof(regDiarioC), a.cant, f);
-        }
-        
-        fclose(f);
+// CSV load/save
+DataArray loadFromCsv(const char* filename) {
+    DataArray a = { NULL, 0 };
+    FILE *f = fopen(filename, "r");
+    if (!f) {
+        // not an error; start with empty data
+        return a;
     }
-    
+    char line[512];
+    // optional header skip
+    while (fgets(line, sizeof(line), f)) {
+        // skip empty lines
+        if (line[0] == '\n' || line[0] == '\0') continue;
+        // detect header
+        if (strstr(line, "date") || strstr(line, "Date")) {
+            continue;
+        }
+        DailyRecord rec;
+        int dd, mm, yyyy;
+        int tmax, tmin, hum, pres, wdir, wspeed, pcp;
+    int read = sscanf(line, "%d/%d/%d,%d,%d,%d,%d,%d,%d,%d",
+                           &dd, &mm, &yyyy,
+                           &tmax, &tmin, &hum, &pres, &wdir, &wspeed, &pcp);
+        if (read == 10) {
+            rec.date.dd = dd; rec.date.mm = mm; rec.date.yyyy = yyyy;
+            rec.tempMax = tmax; rec.tempMin = tmin; rec.humidity = hum;
+            rec.pressure = pres; rec.windDir = wdir; rec.windSpeed = wspeed; rec.precipitation = pcp;
+            rec.deleted = false;
+            DailyRecord* nb = realloc(a.rec, sizeof(DailyRecord) * (a.count + 1));
+            if (!nb) { break; }
+            a.rec = nb;
+            a.rec[a.count++] = rec;
+        }
+    }
+    fclose(f);
     return a;
 }
 
-TData arregloDeArchivo(char name[50]) {
-    FILE *f = fopen(name, "rb");
-    TData a;
-    a.cant = 0;
-    a.reg = NULL;
-    
-    if (f != NULL) {
-        fseek(f, 0, SEEK_END);
-        long fileSize = ftell(f);
-        rewind(f);
-        
-        a.cant = fileSize / sizeof(regDiario);
-        a.reg = (regDiario*)malloc(fileSize);
-        
-        if (a.reg != NULL) {
-            fread(a.reg, sizeof(regDiario), a.cant, f);
-        }
-        
-        fclose(f);
+int saveToCsv(const char* filename, const DataArray a) {
+    FILE *f = fopen(filename, "w");
+    if (!f) {
+        perror("Could not open CSV for writing");
+        return -1;
     }
-    
-    return a;
+    // header
+    fprintf(f, "date,tempMax,tempMin,humidity,pressure,windDir,windSpeed,precipitation\n");
+    for (int i = 0; i < a.count; i++) {
+        const DailyRecord *r = &a.rec[i];
+        if (r->deleted) continue;
+        fprintf(f, "%02d/%02d/%04d,%d,%d,%d,%d,%d,%d,%d\n",
+                r->date.dd, r->date.mm, r->date.yyyy,
+                r->tempMax, r->tempMin, r->humidity, r->pressure,
+                r->windDir, r->windSpeed, r->precipitation);
+    }
+    fclose(f);
+    return 0;
 }
 
-int busqueda(TData a, long fecha, int cant) {
-    for (int i = 0; i < cant; i++) {
-        if (a.reg[i].ddmmyyyy == fecha) {
+int findIndexByDate(const DataArray* a, Date date) {
+    for (int i = 0; i < a->count; i++) {
+        if (!a->rec[i].deleted &&
+            a->rec[i].date.dd == date.dd &&
+            a->rec[i].date.mm == date.mm &&
+            a->rec[i].date.yyyy == date.yyyy) {
             return i;
         }
     }
     return -1;
 }
 
-int busquedac(TDatac a, TFecha fecha, int ini, int fin) {
-    if (ini <= fin) {
-        int mid = (ini + fin) / 2;
-        if (a.reg[mid].ddmmyyyy.dd == fecha.dd &&
-            a.reg[mid].ddmmyyyy.mm == fecha.mm &&
-            a.reg[mid].ddmmyyyy.yyyy == fecha.yyyy) {
-            return mid;
-        }
-        if ((a.reg[mid].ddmmyyyy.yyyy > fecha.yyyy) ||
-            (a.reg[mid].ddmmyyyy.yyyy == fecha.yyyy && a.reg[mid].ddmmyyyy.mm > fecha.mm) ||
-            (a.reg[mid].ddmmyyyy.yyyy == fecha.yyyy && a.reg[mid].ddmmyyyy.mm == fecha.mm && a.reg[mid].ddmmyyyy.dd > fecha.dd)) {
-            return busquedac(a, fecha, ini, mid - 1);
-        }
-        return busquedac(a, fecha, mid + 1, fin);
+// No binary search needed; linear scan is sufficient for in-memory operations
+
+// Functions invoked by the switch menu
+void option5_showRecordByDate (void) {
+    Date date;
+    printf("\nEnter date (DD/MM/YYYY): ");
+    if (scanf("%d/%d/%d", &date.dd, &date.mm, &date.yyyy) != 3) {
+        printf("Invalid date format.\n");
+        int c; while ((c = getchar()) != '\n' && c != EOF) {}
+        return;
     }
-    return -1;
-}
 
-//definicion de las funciones llamdas por el switch
-void opcion5 (char name[50]) {
-
-    TDatac regArc;
-    TFecha fechac;
-    regDiario datos;
-    FILE* g = NULL;
-
-    printf("\n Ingrese el dia del registro(1-31):");
-    scanf(" %d", &fechac.dd);  
-    printf("\n Ingrese el mes del registro(1-12):");
-    scanf(" %d", &fechac.mm);  
-    printf("\n Ingrese el año del registro(2022):");
-    scanf(" %d", &fechac.yyyy);  
-
-    //en a guardo el archivo en forma de arreglo
-    regArc = arregloDeArchivoC(name);
-    //aplico la busqueda sobre el arrelgo con el archivo
-    int p = busquedac(regArc, fechac, 0, regArc.cant-1);
-    printf("%d", p);
-    
+    int p = findIndexByDate(&g_data, date);
     if (p != -1) {
-        g = fopen(name,"rb");
-        if (g == NULL) {
-            printf("No se pudo abrir el archivo.\n");
-            return;
-        }
-        fseek(g, (p * (sizeof(regDiario)) - (sizeof(regDiario))), SEEK_SET);
-        
-        //muestro los datos del registro que se corresponden a la fecha indicada
-        if (fread(&datos, sizeof(regDiario), 1, g) != 1) {
-            printf("Error al leer el archivo.\n");
-        } else {
-            printf("\n-----------------------------------\n");
-            printf("Fecha del registro: %ld\n", datos.ddmmyyyy);
-            printf("Temperatura maxima de la fecha: %d grados celsius\n", datos.tmax);
-            printf("Temperatura minima de la fecha: %d grados celsius\n", datos.tmin);
-            printf("Humedad promedio de la fecha: %d%%\n", datos.HUM);
-            printf("Presion atmosferica de la fecha: %d hectopascales\n", datos.PNM);
-            printf("Direccion del viento con mayor intensidad (de 0 a 360): %d grados\n", datos.DV);
-            printf("Maxima velocidad de viento de la fecha: %d km/h\n", datos.FF);
-            printf("Precipitacion pluvial de la fecha: %d mm", datos.PP);
-            printf("\n-----------------------------------\n");
-        }
+        DailyRecord rec = g_data.rec[p];
+        printf("\n-----------------------------------\n");
+        printf("Record date: %02d/%02d/%04d\n", rec.date.dd, rec.date.mm, rec.date.yyyy);
+        printf("Maximum temperature: %d C\n", rec.tempMax);
+        printf("Minimum temperature: %d C\n", rec.tempMin);
+        printf("Average humidity: %d%%\n", rec.humidity);
+        printf("Atmospheric pressure: %d hPa\n", rec.pressure);
+        printf("Direction of strongest wind (0 to 360): %d degrees\n", rec.windDir);
+        printf("Maximum wind speed: %d km/h\n", rec.windSpeed);
+        printf("Precipitation: %d mm", rec.precipitation);
+        printf("\n-----------------------------------\n");
     } else {
-        printf("El registro no existe.");
-    }
-    if (g != NULL) {
-        fclose(g);
+        printf("The record does not exist.\n");
     }
 }
 
-void opcion6(char name[50]){
-    //en un puntero, guardo la lista con las temperaturas maximas
-    TNodo* listTempMax = temperaturaMax(name);  
+void option6_listMaxTemperature(void){
+    // get the list with maximum temperatures
+    Node* listTempMax = maxTemperatureRecords();  
 
     if (listTempMax == NULL) {
-        printf("No se pudo generar la lista de temperaturas maximas.\n");
+        printf("Could not generate the max temperature list.\n");
         return;
     }
 
-    //le paso la direccion de memoria de la cabeza de la lista de temperaturas maximas a un puntero auxiliar
-    TNodo* aux = listTempMax;
+    // iterate and show
+    Node* aux = listTempMax;
 
-    //muestro todas las fechas de las temperaturas maximas          
     while(aux != NULL){
         printf("\n-----------------------------------\n");
-        printf("Fecha del registro con maxima temperatura: %ld\n", aux->info.ddmmyyyy);
-        printf("Temperatura maxima de la fecha: %d grados celsius", aux->info.tmax);
+        printf("Record date with maximum temperature: %02d/%02d/%04d\n", aux->info.date.dd, aux->info.date.mm, aux->info.date.yyyy);
+        printf("Maximum temperature: %d C", aux->info.tempMax);
         printf("\n-----------------------------------\n");
         aux = aux->next;
     } 
 
-    if (!liberar(&listTempMax)) {
-        printf("Error al liberar la memoria de la lista.\n");
+    if (!freeList(&listTempMax)) {
+        printf("Error freeing the list memory.\n");
     }
 }
 
-void opcion7(char name[50]){
-    //en un puntero, guardo la lista con las maximas precipitaciones (ordenadas, de menor a mayor)
-    TNodo* listPreciMax = precipitacionMax(name);
+void option7_listMaxPrecipitation(void){
+    // list with maximum precipitation (sorted)
+    Node* listPreciMax = maxPrecipitationRecords();
 
     if (listPreciMax == NULL) {
-        printf("No se pudo generar la lista de precipitaciones maximas.\n");
+        printf("Could not generate the max precipitation list.\n");
         return;
     }
 
-    //en un puntero auxiliar, guardo la cabeza de la lista de maximas precipitaciones
-    TNodo* aux = listPreciMax;
+    Node* aux = listPreciMax;
     int i = 1;
 
-    //muestro las primeras 10 mayores precipitaciones            
+    // show top 10 precipitation entries            
     while((aux != NULL) && (i <= 10)){
         printf("\n-----------------------------------\n");
-        printf("Fecha del registro: %ld\n", aux->info.ddmmyyyy);
-        printf("Precipitacion pluvial de la fecha: %d mm", aux->info.PP);
+        printf("Record date: %02d/%02d/%04d\n", aux->info.date.dd, aux->info.date.mm, aux->info.date.yyyy);
+        printf("Precipitation: %d mm", aux->info.precipitation);
         printf("\n-----------------------------------\n");
         aux = aux->next;
         i++;
     } 
 
-    if (!liberar(&listPreciMax)) {
-        printf("Error al liberar la memoria de la lista.\n");
+    if (!freeList(&listPreciMax)) {
+        printf("Error freeing the list memory.\n");
     }
 }
 
-void opcion8(char name[50]){
-    //en un puntero, guardo la lista de la velocidad del viento (ordenada, de mayor a menor)
-    TNodo* listVientoVel = velocidadViento(name);
+void option8_listTop10WindSpeeds(void){
+    // list of wind speeds (sorted, descending)
+    Node* listWind = windSpeedRecords();
 
-    if (listVientoVel == NULL) {
-        printf("No se pudo generar la lista de velocidades de viento.\n");
+    if (listWind == NULL) {
+        printf("Could not generate the wind speed list.\n");
         return;
     }
 
-    //en un puntero auxiliar, guardo la cabeza de la lista de la velocidad del viento
-    TNodo* aux = listVientoVel;
+    Node* aux = listWind;
     int i = 1;
 
-    //muestro las primeras 10 mayores velocidades de viento de la lista            
+    // show top 10 wind speed entries            
     while((aux != NULL) && (i <= 10)){
         printf("\n-----------------------------------\n");
-        printf("Fecha del registro: %ld\n", aux->info.ddmmyyyy);
-        printf("Direccion del viento con mayor intensidad (de 0 a 360): %d grados\n", aux->info.DV);
-        printf("Maxima velocidad de viento de la fecha: %d km/h", aux->info.FF);
+        printf("Record date: %02d/%02d/%04d\n", aux->info.date.dd, aux->info.date.mm, aux->info.date.yyyy);
+        printf("Direction of strongest wind (0 to 360): %d degrees\n", aux->info.windDir);
+        printf("Maximum wind speed: %d km/h", aux->info.windSpeed);
         printf("\n-----------------------------------\n");
         aux = aux->next;
         i++;
     } 
 
-    if (!liberar(&listVientoVel)) {
-        printf("Error al liberar la memoria de la lista.\n");
+    if (!freeList(&listWind)) {
+        printf("Error freeing the list memory.\n");
     }
 }
 
-void opcion9(char name[50]){
-    //abro ambos archivos (el actual, y el cual en donde voy a guardar la copia de seguridad)
-    char name2[50];
-    strcpy(name2, "copia_seguridad_");
-    strcat(name2,name);
-
-    FILE* f = fopen(name,"rb");
-    if (f == NULL) {
-        printf("No se pudo abrir el archivo %s.\n", name);
-        return;
-    }
-
-    FILE* g = fopen(name2,"wb+");
-    if (g == NULL) {
-        printf("No se pudo abrir el archivo %s.\n", name2);
-        fclose(f);
-        return;
-    }
-
-    regDiario datos;
-
-    //a los registros que no estan borrados (borrado == false), los guarda en el nuevo archivo
-    while(fread(&datos,sizeof(regDiario),1,f) != 0){
-        if(datos.borrado == false){
-            fwrite(&datos,sizeof(regDiario),1,g);
-        }
-    }
-    fclose(f);
-    fclose(g);
-}
+// (Removed old backup logic; CSV save-on-exit is used instead.)

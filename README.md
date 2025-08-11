@@ -2,7 +2,7 @@
 
 ## Overview
 
-This C program is a command-line application designed to **manage, analyze, and back up daily meteorological records**. Users can add, modify, delete, search, and list weather data stored in binary files. The program handles data such as temperature, humidity, pressure, wind speed/direction, and precipitation for each day, providing an organized way to keep and analyze local weather history.
+This C program is a command-line application designed to **manage and analyze daily meteorological records** using a human-readable CSV file. Users can add, modify, logically delete, search, and list weather data. The program handles data such as temperature, humidity, pressure, wind speed/direction, and precipitation for each day, providing an organized way to keep and analyze local weather history.
 
 ## Features
 
@@ -15,12 +15,12 @@ This C program is a command-line application designed to **manage, analyze, and 
   - Maximum temperature
   - Maximum precipitation
   - Highest wind speed (top 10 days)
-- **Create a backup** of the current year’s data (excluding deleted records)
+  - Load data from CSV on demand (menu option 9)
 
 ## Data Structure
 
-- **regDiario**: Structure containing all meteorological data for one day, including:
-  - Date (`ddmmyyyy`)
+- **DailyRecord**: Structure containing all meteorological data for one day, including:
+  - Date (DD/MM/YYYY)
   - Max/Min temperature
   - Humidity
   - Atmospheric pressure
@@ -28,24 +28,24 @@ This C program is a command-line application designed to **manage, analyze, and 
   - Precipitation
   - Logical deletion flag
 
-- **TData**: Struct holding an array of `regDiario` records and its count, used for in-memory processing.
+- **DataArray**: Struct holding an array of `DailyRecord` records and its count, used for in-memory processing.
 
-- **Linked lists**: Used for sorted reporting (temperature, wind speed, precipitation rankings).
+- **Linked lists (Node)**: Used for sorted reporting (temperature, wind speed, precipitation rankings).
 
 ## How It Works
 
-- All data is stored in a **binary file** specified by the user at program start.
-- Records are never physically deleted—**logical deletion** is performed by a boolean flag.
+- Data lives in memory while the app runs. Load an existing CSV via the menu when you need it.
+- Records are never physically removed—**logical deletion** is tracked by a boolean flag and excluded on save.
 - User interacts via a text-based menu to perform all actions.
-- QuickSort is used internally to sort records for reports.
-- Backup files are created by copying valid (not deleted) records to a new file prefixed with `copia_seguridad_`.
+- QuickSort is used internally by the reporting lists.
+- On exit, the app asks whether to save changes back to the CSV file (using the most recently loaded filename).
 
 ## Usage
 
 ### Compile the program
 
 ```sh
-gcc -o weatherStation weatherStation.c
+gcc -Wall -Wextra -std=c11 -o weatherStation weatherStation.c
 ```
 
 ### Run the program
@@ -53,3 +53,8 @@ gcc -o weatherStation weatherStation.c
 ```sh
 ./weatherStation
 ```
+
+At startup, the app begins with an empty in-memory dataset. Use the menu option “Load data from CSV file (9)” to load from a CSV (default sample provided as `weather.csv`). Dates must be entered as DD/MM/YYYY. On exit, you’ll be asked if you want to save changes back to the CSV file (using the most recently loaded filename).
+
+Sample data:
+- A ready-to-use sample CSV `weather.csv` with 10 records is included so you can try listing, searching, and reporting immediately.
