@@ -95,9 +95,9 @@ int main() {
         printf("Search record by date and show details (5)\n");
         printf("List days with maximum temperature (6)\n");
         printf("List days with maximum precipitation (7)\n");
-    printf("List days by wind speed (descending) (8)\n");
-    printf("Load data from CSV file (9)\n");
-    printf("Exit (10)");
+        printf("List days by wind speed (descending) (8)\n");
+        printf("Load data from CSV file (9)\n");
+        printf("Exit (10)");
         printf("\n-----------------------------------\n");
         printf("Choose an option: ");
         fflush(stdout);
